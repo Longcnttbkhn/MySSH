@@ -1,36 +1,66 @@
 package chpt.myssh.clients.controllers;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.InetAddress;
 import java.net.Socket;
-import java.net.UnknownHostException;
 import java.util.Scanner;
+import java.util.StringTokenizer;
+
+import chpt.myssh.server.models.Command;
 
 public class Client {
 
-	public static void main(String[] args) throws UnknownHostException, IOException {
+	public static void main(String[] args) {
 		// TODO Auto-generated method stub
-		Socket socket = new Socket("localhost", 8888);
 		Scanner scanner = new Scanner(System.in);
-		try (PrintWriter output = new PrintWriter(socket.getOutputStream());
-				BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
-			boolean tieptuc = true;
-			while (tieptuc) {
-				System.out.print("myShell$ ");
-				String command = scanner.nextLine();
-				output.println(command);
-				output.flush();
-				System.out.println(input.readLine());
-				if (command.equals("exit")) 
-					tieptuc = false;
+
+		boolean tieptuc = true;
+		while (tieptuc) {
+			System.out.print("myShell~$ ");
+			String cmd = scanner.nextLine();
+			if (cmd.equals("exit")) {
+				tieptuc = false;
+			} else {
+				StringTokenizer strToken = new StringTokenizer(cmd, " ");
+				if (strToken.nextToken().equals("ssh")) {
+					String ip = strToken.nextToken();
+					try (Socket socket = new Socket(InetAddress.getByAddress(getIp(ip)), 8888);
+							ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
+							ObjectInputStream input = new ObjectInputStream(socket.getInputStream())) {
+						
+						boolean tieptuc1 = true;
+						while (tieptuc1) {
+							Command commandReceive = (Command) input.readObject();
+							if (commandReceive.getCommandName().equals("write")) 
+								System.out.print(commandReceive.getParameter(1));
+							else if (commandReceive.getCommandName().equals("writeln"))
+								System.out.println(commandReceive.getParameter(1));
+							else if (commandReceive.getCommandName().equals("read")) {
+								Command comandSend = new Command(scanner.nextLine());
+								output.writeObject(comandSend);
+								output.flush();
+							} else if (commandReceive.getCommandName().equals("logout"))
+								tieptuc1 = false;
+
+						}
+					} catch (IOException | ClassNotFoundException e) {
+						// TODO Auto-generated catch block
+						System.out.println("Can't connect to server");
+					}
+				}
 			}
-		} catch (IOException e) {
-			System.out.println(e.getMessage());
 		}
-		socket.close();
 		scanner.close();
 	}
 
+	public static byte[] getIp(String ip) {
+		StringTokenizer strToken = new StringTokenizer(ip, ".");
+		byte[] ipByte = new byte[4];
+		for (int i = 0; i < 4; i++) {
+			ipByte[i] = Byte.valueOf(strToken.nextToken());
+		}
+		return ipByte;
+	}
 }
