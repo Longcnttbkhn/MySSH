@@ -1,13 +1,17 @@
 package chpt.myssh.clients.controllers;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.util.Scanner;
 import java.util.StringTokenizer;
 
+import chpt.myssh.server.controllers.Package;
 import chpt.myssh.server.models.Command;
 
 public class Client {
@@ -29,25 +33,39 @@ public class Client {
 					try (Socket socket = new Socket(InetAddress.getByAddress(getIp(ip)), 8888);
 							ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
 							ObjectInputStream input = new ObjectInputStream(socket.getInputStream())) {
-						
+
 						boolean tieptuc1 = true;
 						while (tieptuc1) {
 							Command commandReceive = (Command) input.readObject();
-							if (commandReceive.getCommandName().equals("write")) 
+							String cmdName = commandReceive.getCommandName();
+							if (cmdName.equals("write"))
 								System.out.print(commandReceive.getParameter(1));
-							else if (commandReceive.getCommandName().equals("writeln"))
+							else if (cmdName.equals("writeln"))
 								System.out.println(commandReceive.getParameter(1));
-							else if (commandReceive.getCommandName().equals("read")) {
+							else if (cmdName.equals("read")) {
 								Command comandSend = new Command(scanner.nextLine());
 								output.writeObject(comandSend);
 								output.flush();
-							} else if (commandReceive.getCommandName().equals("logout"))
+							} else if (cmdName.equals("createfile")) {
+								File file = new File(commandReceive.getParameter(1));
+								OutputStream write = new FileOutputStream(file);
+								boolean tieptuc2 = true;
+								do {
+									Package pack = (Package) input.readObject();
+									int length = pack.getLength();
+									if (length > 0) 
+										write.write(pack.getBuffer(), 0, length);
+									else
+										tieptuc2 = false;
+								} while (tieptuc2);
+								write.close();
+							} else if (cmdName.equals("logout"))
 								tieptuc1 = false;
 
 						}
 					} catch (IOException | ClassNotFoundException e) {
 						// TODO Auto-generated catch block
-						System.out.println("Can't connect to server");
+						e.printStackTrace();
 					}
 				}
 			}

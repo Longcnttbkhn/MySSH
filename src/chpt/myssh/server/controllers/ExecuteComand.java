@@ -3,13 +3,15 @@ package chpt.myssh.server.controllers;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.net.Socket;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Stack;
 import java.util.StringTokenizer;
 
@@ -20,10 +22,12 @@ public class ExecuteComand {
 	private ObjectOutputStream output;
 	private String root_directory;
 	private String current_directory;
+	private Socket socket;
 
 	public ExecuteComand(ObjectInputStream input, ObjectOutputStream output) {
 		this.input = input;
 		this.output = output;
+		this.socket = socket;
 	}
 
 	public void setUserName(String userName) {
@@ -61,8 +65,57 @@ public class ExecuteComand {
 				mv(cmd.getParameter(1), cmd.getParameter(2));
 		} else if (cmdName.equals("echo")) 
 			echo(cmd.getParameter(1), cmd.getParameter(2));
-		else
+		else if (cmdName.equals("time")) 
+			time();
+		else if (cmdName.equals("get")) {
+			if (cmd.getParameter(1) == null)
+				writeln("No file name");
+			else
+				get(cmd.getParameter(1));
+		} else
 			writeln(cmdName);
+	}
+	
+	public void get(String path) throws IOException {
+		String fullPath = root_directory + "/" + getUserPath(path);
+		File fileRead = new File(fullPath);
+		if (fileRead.exists()) {
+			writeln("Downloading ... ");
+			get(fileRead);
+			writeln("Download commplete");
+		}
+	}
+	
+	public void get(File file) throws IOException {
+		if (file.isFile()) {
+			createFile(file.getName());
+			InputStream read = new FileInputStream(file);
+			int length;
+			byte[] buffer = new byte[1024];
+			while ((length = read.read(buffer)) > 0) {
+				output.writeObject(new Package(length, buffer));
+				output.reset();
+				output.flush();
+			}
+			output.writeObject(new Package(-1, null));
+			output.reset();
+			output.flush();
+			read.close();
+		} 
+	} 
+	
+	public void createFile(String fileName) throws IOException {
+		Command cmd = new Command("createfile");
+		cmd.addParameter(fileName);
+		output.writeObject(cmd);
+		output.flush();
+	}
+	
+	public void time() throws IOException {
+		Date today = new Date(System.currentTimeMillis());
+		SimpleDateFormat format = new SimpleDateFormat("hh:mm:ss dd/MM/yyyy");
+		String s = format.format(today.getTime());
+		writeln(s);
 	}
 	
 	public void echo(String arg1, String path) throws IOException {
@@ -142,16 +195,15 @@ public class ExecuteComand {
 				writeln("Duplicate file names");
 			}
 			if (fileOutput.isDirectory()) {
-				fileOutput = new File(fileOutput, fileInput.getName());
-				fileOutput.createNewFile();
-			}
-			 else {
+				File file= new File(fileOutput, fileInput.getName());
+				cp(fileInput, file);
+			} else {
 				InputStream in = new FileInputStream(fileInput);
 				OutputStream out = new FileOutputStream(fileOutput);
 				byte[] buffer = new byte[1024];
 				int length = 0;
 				while ((length = in.read(buffer)) > 0) {
-					out.write(buffer);
+					out.write(buffer, 0, length);
 				}
 				in.close();
 				out.close();
