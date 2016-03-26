@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.EmptyStackException;
 
 import chpt.myssh.server.models.Command;
 import chpt.myssh.server.models.User;
@@ -46,8 +47,16 @@ public class SShThread implements Runnable {
 							exeCmd.writeln("Good buy");
 							exeCmd.disconnect();
 							break;
-						} else
-							exeCmd.exe(commandReceive);
+						} else {
+							try {
+								exeCmd.exe(commandReceive);
+							} catch (IOException e) {
+								exeCmd.writeln(e.getMessage());
+							} catch (EmptyStackException e) {
+								exeCmd.writeln("Can't access directory");
+							}
+						}
+							
 					}
 				} else
 					exeCmd.writeln("Username or password is fail!");

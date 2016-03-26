@@ -1,9 +1,15 @@
 package chpt.myssh.server.controllers;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.util.Stack;
 import java.util.StringTokenizer;
 
@@ -33,8 +39,130 @@ public class ExecuteComand {
 			cd(cmd.getParameter(1));
 		else if (cmdName.equals("pwd"))
 			pwd();
+		else if (cmdName.equals("mkdir")) {
+			if (cmd.getParameter(1) == null)
+				writeln("No path of directory");
+			else
+				mkdir(cmd.getParameter(1));
+		} else if (cmdName.equals("rm")) {
+			if (cmd.getParameter(1) == null)
+				writeln("No path of file or directory");
+			else
+				rm(cmd.getParameter(1));
+		} else if (cmdName.equals("cp")) {
+			if (cmd.getParameter(2) == null)
+				writeln("Not enough parameter");
+			else
+				cp(cmd.getParameter(1), cmd.getParameter(2));
+		} else if (cmdName.equals("mv")) {
+			if (cmd.getParameter(2) == null)
+				writeln("Not enough parameter");
+			else
+				mv(cmd.getParameter(1), cmd.getParameter(2));
+		} else if (cmdName.equals("echo")) 
+			echo(cmd.getParameter(1), cmd.getParameter(2));
 		else
 			writeln(cmdName);
+	}
+	
+	public void echo(String arg1, String path) throws IOException {
+		if (arg1 == null) 
+			writeln("");
+		else if (path == null) {
+			writeln(arg1);
+		} else {
+			String fullPath = root_directory + "/" + getUserPath(path);
+			File fileOutput = new File(fullPath);
+			fileOutput.createNewFile();
+			PrintWriter print = new PrintWriter(new FileOutputStream(fileOutput));
+			print.print(arg1);
+			print.close();
+			writeln(arg1);
+		}
+	}
+
+	public void mv(String arg1, String arg2) throws IOException {
+		String fullPath1 = root_directory + "/" + getUserPath(arg1);
+		String fullPath2 = root_directory + "/" + getUserPath(arg2);
+		File file1 = new File(fullPath1);
+		File file2 = new File(fullPath2);
+		if (file1.exists()) {
+			cp(file1, file2);
+			rm(file1);
+		} else
+			writeln("No such file or directory");
+	}
+
+	public void rm(String path) throws IOException {
+		String fullPath = root_directory + "/" + getUserPath(path);
+		File file = new File(fullPath);
+		if (file.exists()) {
+			rm(file);
+			writeln("Delete success");
+		} else
+			writeln("No such file or directory");
+	}
+
+	public void rm(File file) {
+		if (file.isFile())
+			file.delete();
+		else if (file.isDirectory()) {
+			for (File i : file.listFiles()) {
+				rm(i);
+			}
+			file.delete();
+		}
+	}
+
+	public void mkdir(String path) throws IOException {
+		String fullPath = root_directory + "/" + getUserPath(path);
+		File file = new File(fullPath);
+		if (file.isDirectory()) {
+			writeln("This directory is exists");
+		} else {
+			file.mkdirs();
+			writeln("Create directory success");
+		}
+	}
+
+	public void cp(String arg1, String arg2) throws IOException {
+		String fullPath1 = root_directory + "/" + getUserPath(arg1);
+		String fullPath2 = root_directory + "/" + getUserPath(arg2);
+		File file1 = new File(fullPath1);
+		File file2 = new File(fullPath2);
+		if (file1.exists()) {
+			cp(file1, file2);
+		} else
+			writeln("No such file or directory");
+	}
+
+	public void cp(File fileInput, File fileOutput) throws IOException {
+		if (fileInput.isFile()) {
+			if (fileInput.equals(fileOutput)) {
+				writeln("Duplicate file names");
+			}
+			if (fileOutput.isDirectory()) {
+				fileOutput = new File(fileOutput, fileInput.getName());
+				fileOutput.createNewFile();
+			}
+			 else {
+				InputStream in = new FileInputStream(fileInput);
+				OutputStream out = new FileOutputStream(fileOutput);
+				byte[] buffer = new byte[1024];
+				int length = 0;
+				while ((length = in.read(buffer)) > 0) {
+					out.write(buffer);
+				}
+				in.close();
+				out.close();
+			}
+		} else if (fileInput.isDirectory()) {
+			fileOutput.mkdirs();
+			for (File i : fileInput.listFiles()) {
+				File fileDich = new File(fileOutput, i.getName());
+				cp(i, fileDich);
+			}
+		}
 	}
 
 	public void pwd() throws IOException {
@@ -82,9 +210,9 @@ public class ExecuteComand {
 
 	public void ls(String path) throws IOException {
 		String fullPath = null;
-		if (path == null) 
+		if (path == null)
 			fullPath = getFullPath();
-		else { 
+		else {
 			String userPath = getUserPath(path);
 			fullPath = root_directory + "/" + userPath;
 		}
@@ -96,11 +224,12 @@ public class ExecuteComand {
 				if (i.isDirectory()) {
 					result.append(String.format(" %10s   %-10s   %-10s\n", "Directory", i.getName(), ""));
 				} else if (i.isFile()) {
-					result.append(String.format(" %10s   %-10s   %-10s\n", "file", i.getName(), getSizeFile(i.length())));
+					result.append(
+							String.format(" %10s   %-10s   %-10s\n", "file", i.getName(), getSizeFile(i.length())));
 				}
 			}
 			write(result.toString());
-		} else 
+		} else
 			writeln("No such directory");
 	}
 
