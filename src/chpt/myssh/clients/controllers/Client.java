@@ -6,13 +6,14 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.util.Scanner;
 import java.util.StringTokenizer;
 
-import chpt.myssh.share.Package;
 import chpt.myssh.share.Command;
+import chpt.myssh.share.Package;
 
 public class Client {
 
@@ -53,7 +54,7 @@ public class Client {
 								do {
 									Package pack = (Package) input.readObject();
 									int length = pack.getLength();
-									if (length > 0) 
+									if (length > 0)
 										write.write(pack.getBuffer(), 0, length);
 									else
 										tieptuc2 = false;
@@ -63,9 +64,12 @@ public class Client {
 								tieptuc1 = false;
 
 						}
+
+					} catch (ConnectException e) {
+						System.out.println(e.getMessage());
 					} catch (IOException | ClassNotFoundException e) {
 						// TODO Auto-generated catch block
-						e.printStackTrace();
+						System.out.println(e);
 					}
 				}
 			}

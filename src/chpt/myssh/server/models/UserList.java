@@ -2,7 +2,9 @@ package chpt.myssh.server.models;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.StringTokenizer;
 
@@ -21,7 +23,7 @@ public class UserList {
 			}
 		} catch (IOException e) {
 			// TODO: handle exception
-			e.printStackTrace();
+			System.out.println(e.getMessage());
 		}
 	}
 	
@@ -36,5 +38,24 @@ public class UserList {
 			}
 		}
 		return user;
+	}
+	
+	public boolean checkUser(String userName) {
+		boolean hasUser = false;
+		for (User i : listUser) {
+			if (i.getUserName().equals(userName)) {
+				hasUser = true;
+				break;
+			}
+		}
+		return hasUser;
+	}
+	
+	public void save(User user) {
+		try (PrintWriter write = new PrintWriter(new FileWriter(fileName, true));) {
+			write.print("\n" + user.toString());
+		} catch (IOException e) {
+			System.out.println(e.getMessage());
+		}
 	}
 }	

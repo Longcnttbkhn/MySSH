@@ -5,40 +5,66 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.net.Socket;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.EmptyStackException;
 import java.util.Stack;
 import java.util.StringTokenizer;
 
+import chpt.myssh.server.models.User;
+import chpt.myssh.server.models.UserList;
 import chpt.myssh.share.Command;
-import chpt.myssh.share.Package;
 
-public class ExecuteComand {
-	private ObjectInputStream input;
-	private ObjectOutputStream output;
-	private String root_directory;
-	private String current_directory;
-
-	public ExecuteComand(ObjectInputStream input, ObjectOutputStream output) {
-		this.input = input;
-		this.output = output;
-	}
+public abstract class ExecuteComand {
+	protected String root_directory;
+	protected String current_directory;
 
 	public void setUserName(String userName) {
 		root_directory = "home/" + userName;
+		File rootUser = new File(root_directory);
+		if (!rootUser.exists())
+			rootUser.mkdirs();
 		current_directory = "~";
 	}
 
-	public void exe(Command cmd) throws IOException {
+	public void login(String serverName) throws IOException, ClassNotFoundException {
+		write("Input user name: ");
+		String userName = read().getParameter(0);
+		write("password: ");
+		String password = read().getParameter(0);
+		User user = new UserList().checkUser(userName, password);
+		if (user != null) {
+			writeln("Connect success!");
+			setUserName(user.getUserName());
+			while (true) {
+				write(user.getUserName() + "@" + serverName + ":" + getCurrentPath() + "$ ");
+				Command commandReceive = read();
+				if (commandReceive.getCommandName().equals("logout")) {
+					writeln("Goodbye");
+					disconnect();
+					break;
+				} else {
+					try {
+						exe(commandReceive);
+					} catch (IOException e) {
+						writeln(e.getMessage());
+					} catch (EmptyStackException e) {
+						writeln("Can't access directory");
+					}
+				}
+			}
+
+		} else {
+			writeln("Username or password is fail!");
+			disconnect();
+		}
+	}
+
+	public void exe(Command cmd) throws IOException, ClassNotFoundException {
 		String cmdName = cmd.getCommandName();
-		if (cmdName.equals("logout"))
-			logout();
-		else if (cmdName.equals("ls"))
+		if (cmdName.equals("ls"))
 			ls(cmd.getParameter(1));
 		else if (cmdName.equals("cd"))
 			cd(cmd.getParameter(1));
@@ -68,48 +94,24 @@ public class ExecuteComand {
 			echo(cmd.getParameter(1), cmd.getParameter(2));
 		else if (cmdName.equals("time"))
 			time();
-		else if (cmdName.equals("get")) {
-			if (cmd.getParameter(1) == null)
-				writeln("No file name");
-			else
-				get(cmd.getParameter(1));
-		} else
+		else if (cmdName.equals("cruser"))
+			creatAccount();
+		else
 			writeln(cmdName);
 	}
 
-	public void get(String path) throws IOException {
-		String fullPath = root_directory + "/" + getUserPath(path);
-		File fileRead = new File(fullPath);
-		if (fileRead.exists()) {
-			writeln("Downloading ... ");
-			get(fileRead);
-			writeln("Download commplete");
-		}
-	}
-
-	public void get(File file) throws IOException {
-		if (file.isFile()) {
-			createFile(file.getName());
-			InputStream read = new FileInputStream(file);
-			int length;
-			byte[] buffer = new byte[1024];
-			while ((length = read.read(buffer)) > 0) {
-				output.writeObject(new Package(length, buffer));
-				output.reset();
-				output.flush();
-			}
-			output.writeObject(new Package(-1, null));
-			output.reset();
-			output.flush();
-			read.close();
-		}
-	}
-
-	public void createFile(String fileName) throws IOException {
-		Command cmd = new Command("createfile");
-		cmd.addParameter(fileName);
-		output.writeObject(cmd);
-		output.flush();
+	public void creatAccount() throws IOException, ClassNotFoundException {
+		write("Input user name: ");
+		String userName = read().getParameter(0);
+		UserList list = new UserList();
+		if (!list.checkUser(userName)) {
+			write("password: ");
+			String password = read().getParameter(0);
+			User user = new User(userName, password);
+			list.save(user);
+			writeln("Create user access");
+		} else
+			writeln("Duplicate user name");
 	}
 
 	public void time() throws IOException {
@@ -286,11 +288,6 @@ public class ExecuteComand {
 			writeln("No such directory");
 	}
 
-	public void logout() throws IOException {
-		writeln("Good buy");
-		disconnect();
-	}
-
 	public String getSizeFile(long length) {
 		String size = null;
 		if ((length / 1024l) == 0) {
@@ -315,32 +312,11 @@ public class ExecuteComand {
 		return current_directory;
 	}
 
-	public void write(String message) throws IOException {
-		Command command = new Command("write");
-		command.addParameter(message);
-		output.writeObject(command);
-		output.flush();
-	}
+	public abstract void disconnect() throws IOException;
 
-	public void writeln(String message) throws IOException {
-		Command command = new Command("writeln");
-		command.addParameter(message);
-		output.writeObject(command);
-		output.flush();
-	}
+	public abstract void write(String message) throws IOException;
 
-	public void disconnect() throws IOException {
-		Command command = new Command("logout");
-		output.writeObject(command);
-		output.flush();
-	}
+	public abstract void writeln(String message) throws IOException;
 
-	public Command read() throws IOException, ClassNotFoundException {
-		Command commandSend = new Command("read");
-		output.writeObject(commandSend);
-		output.flush();
-
-		Command commandReceive = (Command) input.readObject();
-		return commandReceive;
-	}
+	public abstract Command read() throws IOException, ClassNotFoundException;
 }

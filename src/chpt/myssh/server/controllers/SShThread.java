@@ -1,65 +1,88 @@
 package chpt.myssh.server.controllers;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.EmptyStackException;
-
-import chpt.myssh.share.Command;
-import chpt.myssh.server.models.User;
-import chpt.myssh.server.models.UserList;
 
 public class SShThread implements Runnable {
-	private Socket socket;
-	private Server server;
+	private int max_client;
+	private int current_client;
+	private String serverName;
+	private boolean sshOn;
 
-	public SShThread(Socket socket, Server server) throws IOException {
-		// TODO Auto-generated constructor stub
-		this.socket = socket;
-		this.server = server;
+	public SShThread(int max_client, String serverName) {
+		this.max_client = max_client;
+		this.serverName = serverName;
+		this.sshOn = true;
 	}
 
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
-		try (ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
-				ObjectInputStream input = new ObjectInputStream(socket.getInputStream())) {
-			ExecuteComand exeCmd = new ExecuteComand(input, output);
-			if (server.isOverload()) {
-				exeCmd.writeln("Overload server");
-				exeCmd.disconnect();
-			} else {
-				server.connect_client();
-				exeCmd.write("Input user name: ");
-				String userName = exeCmd.read().getParameter(0);
-				exeCmd.write("password: ");
-				String password = exeCmd.read().getParameter(0);
-				User user = new UserList().checkUser(userName, password);
-				if (user != null) {
-					exeCmd.writeln("Connect success!");
-					exeCmd.setUserName(user.getUserName());
-					while (true) {
-						exeCmd.write(user.getUserName() + "@" + server.getServerName() + ":" + exeCmd.getCurrentPath()
-								+ "$ ");
-						Command commandReceive = exeCmd.read();
-						try {
-							exeCmd.exe(commandReceive);
-						} catch (IOException e) {
-							exeCmd.writeln(e.getMessage());
-						} catch (EmptyStackException e) {
-							exeCmd.writeln("Can't access directory");
-						}
-					}
-
-				} else
-					exeCmd.writeln("Username or password is fail!");
-				server.disconnect_client();
+		try {
+			ServerSocket serverSocket = new ServerSocket(8888);
+			while (sshOn) {
+				try  {
+					Socket socket = serverSocket.accept();
+					Thread thread = new Thread(new ClientThread(socket, this, serverName));
+					thread.start();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					System.out.println(e.getMessage());
+				}
 			}
-		} catch (IOException | ClassNotFoundException e) {
-			// TODO: handle exception
-			e.printStackTrace();
-			server.disconnect_client();
+			serverSocket.close();
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			System.out.println(e1.getMessage());
 		}
+		
 	}
+
+	public String getStatus() {
+		StringBuilder status = new StringBuilder();
+		if (sshOn)
+			status.append("SSh is running\n");
+		else
+			status.append("SSh is stoping\n");
+		status.append("Max client connect: " + max_client + "\n");
+		status.append("Current client connected: " + current_client);
+		return status.toString();
+	}
+	
+	public int getCurrentClient() {
+		return current_client;
+	}
+	
+	public void stopSSh() {
+		sshOn = false;
+	}
+
+	public synchronized void connect_client() {
+		while (current_client >= max_client) {
+			try {
+				wait();
+			} catch (InterruptedException e) {
+				System.out.println(e.getMessage());
+			}
+		}
+		current_client++;
+		notify();
+	}
+
+	public synchronized void disconnect_client() {
+		while (current_client <= 0) {
+			try {
+				wait();
+			} catch (InterruptedException e) {
+				System.out.println(e.getMessage());
+			}
+		}
+		current_client--;
+		notify();
+	}
+
+	public boolean isOverload() {
+		return (current_client >= max_client);
+	}
+
 }
