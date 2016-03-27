@@ -1,6 +1,10 @@
-package chpt.myssh.server.controllers;
+ package chpt.myssh.server.controllers;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Scanner;
@@ -9,6 +13,7 @@ public class Server {
 	private int current_client;
 	private int max_client;
 	private String server_name;
+	private String fileServer = "server_info.txt";
 
 	public Server() {
 		current_client = 0;
@@ -50,8 +55,18 @@ public class Server {
 		// TODO Auto-generated method stub
 		Scanner scanner = new Scanner(System.in);
 		Server server = new Server();
-		System.out.print("Input server name: ");
-		server.server_name = scanner.nextLine();
+		File serverInfo = new File(server.fileServer);
+		if (serverInfo.exists()) {
+			BufferedReader read = new BufferedReader(new FileReader(serverInfo));;
+			server.server_name = read.readLine();
+			read.close();
+		} else {
+			System.out.print("Input server name: ");
+			server.server_name = scanner.nextLine();
+			PrintWriter write = new PrintWriter(serverInfo);
+			write.println(server.server_name);
+			write.close();
+		}
 		System.out.print("Input max client connect: ");
 		server.max_client = scanner.nextInt();
 		scanner.close();

@@ -1,4 +1,4 @@
-package chpt.myssh.server.models;
+package chpt.myssh.share;
 
 import java.io.Serializable;
 import java.util.ArrayList;

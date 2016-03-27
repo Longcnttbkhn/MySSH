@@ -6,7 +6,7 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.EmptyStackException;
 
-import chpt.myssh.server.models.Command;
+import chpt.myssh.share.Command;
 import chpt.myssh.server.models.User;
 import chpt.myssh.server.models.UserList;
 
@@ -43,21 +43,15 @@ public class SShThread implements Runnable {
 						exeCmd.write(user.getUserName() + "@" + server.getServerName() + ":" + exeCmd.getCurrentPath()
 								+ "$ ");
 						Command commandReceive = exeCmd.read();
-						if (commandReceive.getCommandName().equals("logout")) {
-							exeCmd.writeln("Good buy");
-							exeCmd.disconnect();
-							break;
-						} else {
-							try {
-								exeCmd.exe(commandReceive);
-							} catch (IOException e) {
-								exeCmd.writeln(e.getMessage());
-							} catch (EmptyStackException e) {
-								exeCmd.writeln("Can't access directory");
-							}
+						try {
+							exeCmd.exe(commandReceive);
+						} catch (IOException e) {
+							exeCmd.writeln(e.getMessage());
+						} catch (EmptyStackException e) {
+							exeCmd.writeln("Can't access directory");
 						}
-							
 					}
+
 				} else
 					exeCmd.writeln("Username or password is fail!");
 				server.disconnect_client();

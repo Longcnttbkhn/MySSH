@@ -11,8 +11,8 @@ import java.net.Socket;
 import java.util.Scanner;
 import java.util.StringTokenizer;
 
-import chpt.myssh.server.controllers.Package;
-import chpt.myssh.server.models.Command;
+import chpt.myssh.share.Package;
+import chpt.myssh.share.Command;
 
 public class Client {
 

@@ -1,4 +1,4 @@
-package chpt.myssh.server.controllers;
+package chpt.myssh.share;
 
 import java.io.ByteArrayInputStream;
 import java.io.Serializable;
